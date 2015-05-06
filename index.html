@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<meta charset="utf-8">
+	<script type="text/javascript" src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
+	<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>	
+<div id="container">
+	<div id="buttons">
+		<button  id="playButton">Начать игру</button>
+		<div id="chooseButtons">
+			<h2>Выберите противника</h2>
+			<button onclick="chooseEnemy(1)">Человек</button>
+			<button>Компьютер</button>
+		</div>
+		<ul id="AIdifficulty">
+			<li><h2>Выберите сложность</h2></li>
+			<li><button onclick="chooseEnemy(2, 1)">В первый раз</button></li>
+			<li><button onclick="chooseEnemy(2, 2)">Были победы</button></li>
+			<li><button onclick="chooseEnemy(2, 3)">Но проигрышей не было</button></li>
+		</ul>
+	</div>
+	<div id="out"></div>
+</div>
+<div id="loading_screen"><div><h2></h2><img src="loading.gif"><button>Отменить поиск</button></div></div>
+<script type="text/javascript">
+
+function send(){
+	$.ajax({
+		method: "POST",
+		url: "h.php",
+		data: Obj.prepare(),
+		success: function(r, st, xhr){
+			if (xhr.getResponseHeader('Repeat-Request') != null && xhr.getResponseHeader('Repeat-Request') != '') {
+	 			var dataRequest = xhr.getResponseHeader('Data-Request');
+	 			f(dataRequest);
+	 			Obj.case = dataRequest;
+	 			Obj.timeout.set(xhr.getResponseHeader('Repeat-Request'));
+	 		} else {
+	 			f(0);
+	 		}
+	 		if(typeof $(r).find("#field")[0]) $("#playButton").hide();
+	 		$("#out").html(r);
+		}
+	});
+}
+
+function f (action) {
+	var ls = $("#loading_screen");
+
+	switch(action){
+		case 0:
+			$(ls).hide();
+			$(ls).find("button").show();
+			return;
+		case'waiting':
+			$(ls).find("h2").html('Противник ходит');
+			$(ls).find("button").hide();
+			break;
+		case'searching':
+			$(ls).find("h2").html('Ищем противника');
+			break;
+	}
+	$("#loading_screen").show();
+}
+
+function closeConnection () {
+	clearTimeout(Obj.timeout.id);
+	Obj.case = 'close_session';
+	send();
+	$("#AIdifficulty").hide();
+	$("#buttons").show();$("#chooseButtons").show();
+}
+
+function chooseEnemy (enemy, difficulty) {
+	$("#buttons").hide();
+	Obj.case = "enemy";
+	Obj.enemy = enemy;
+	Obj.difficulty = difficulty;
+	send();
+}
+
+var Obj = {
+	enemy: 0,
+	difficulty: 0,
+	case: "",
+	i: "",
+	j: "",
+	move: function(i, j){
+		this.case = "move";
+		this.i = i;
+		this.j = j;
+	},
+	timeout: {
+		id: "",
+		set: function(ms){
+			ms = ms || 1000;
+			this.id = setTimeout(function () {send();}, ms);
+		}
+	},
+	prepare: function(t){
+		t = t || this
+		var clone = {};
+		for(var n in t){
+			if(typeof t[n] === "object")
+				clone[n] = this.prepare(t[n]);
+			else if(typeof t[n] !== "function")
+				clone[n] = t[n];
+			else continue;
+		}
+		return clone;	
+	}
+}
+
+$(document).ready(function(){
+	$("#playButton").click(function(){
+		$(this).hide();
+		$("#chooseButtons").show();
+	});
+	$("#chooseButtons").find("button").last().click(function(){
+		$(this).parent().hide();
+		$("#AIdifficulty").show();
+	});
+	$("#loading_screen").find("button").click(closeConnection);
+	send();
+});
+</script>
+</body>
+</html>
